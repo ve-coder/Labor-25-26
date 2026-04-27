@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Cube Robot Code from GitHub
+After=network.target
+
+[Service]
+Type=oneshot
+User=pi
+ExecStart=/bin/bash -c 'cd /opt/cube-robot && git pull origin main && pip install -r requirements.txt --upgrade'
+ExecStartPost=/bin/systemctl restart cube-robot.service

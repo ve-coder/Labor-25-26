@@ -1,0 +1,6 @@
+opencv-python
+ursina
+numpy
+kociemba
+picamera2
+RPi.GPIO

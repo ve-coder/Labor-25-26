@@ -10,7 +10,7 @@ Der Raspberry Pi kann den neuesten Code automatisch von GitHub laden und die Anw
 
 ```bash
 # 1. Startskript und Systemd-Dateien einrichten
-sudo cp /pfad/zum/geklonten/repo/start.sh /opt/cube-robot/start.sh
+sudo cp /path/to/cloned/repo/start.sh /opt/cube-robot/start.sh
 sudo chmod +x /opt/cube-robot/start.sh
 
 # 2. Systemd-Dienste und Timer installieren

@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  rubiks:
+    build: .
+    container_name: rubiks-solver
+    restart: always
+    privileged: true
+    volumes:
+      - /dev:/dev

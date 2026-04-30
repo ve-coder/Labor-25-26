@@ -1,0 +1,28 @@
+services:
+  rubiks-solver:
+    build: .
+    container_name: rubiks-cube-solver
+    restart: unless-stopped
+    # Map only the camera device nodes required by picamera2/libcamera.
+    # Adjust the paths to match your Raspberry Pi model; on Pi 4/5 there
+    # may be additional ISP nodes (video10-12, media1, ...).
+    # If you need GPIO access as well, add /dev/gpiomem and /dev/gpiochip0.
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/vchiq:/dev/vchiq
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+      - /dev/media0:/dev/media0
+      - /dev/media1:/dev/media1
+    # Allow the container user to access video devices
+    group_add:
+      - video
+    volumes:
+      # X11 display forwarding (required by cv2.imshow and Ursina)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Persist calibration data on the host between container restarts
+      - ./cube_calibration_rgb9.json:/app/cube_calibration_rgb9.json
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - PYTHONUNBUFFERED=1

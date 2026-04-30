@@ -1,0 +1,5 @@
+opencv-python==4.9.0.80
+ursina==6.4.0
+picamera2==0.3.20
+kociemba==1.2.1
+numpy==1.26.4

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  rubiks-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: rubiks-test
+    
+    # Nur Kamera-Zugriff (kein GPIO)
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+    
+    # Video group
+    group_add:
+      - "44"
+    
+    environment:
+      - TEST_MODE=1
+      - DISPLAY=${DISPLAY:-:0}
+    
+    volumes:
+      # X11 für Display (optional)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Kalibrierung speichern
+      - ./data:/app/data
+      - ./cube_calib.json:/app/cube_calib.json
+    
+    stdin_open: true
+    tty: true

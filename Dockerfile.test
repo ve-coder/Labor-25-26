@@ -1,0 +1,48 @@
+FROM arm64v8/python:3.11-slim-bookworm
+
+# Raspberry Pi Repositories
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gnupg \
+    && curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key \
+    | gpg --dearmor -o /etc/apt/trusted.gpg.d/raspberrypi.gpg \
+    && echo "deb http://archive.raspberrypi.org/debian/ bookworm main" \
+    > /etc/apt/sources.list.d/raspi.list
+
+# Nur Kamera + Vision (ohne GPIO)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-libcamera \
+    python3-kms++ \
+    libatlas-base-dev \
+    libharfbuzz0b \
+    libwebp7 \
+    libtiff6 \
+    libjasper1 \
+    libjasper-dev \
+    libopenjp2-7 \
+    gcc g++ \
+    libglib2.0-0 \
+    libegl1 \
+    libx11-6 \
+    libxrandr2 \
+    libdrm2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Raspberry Pi System-Pakete verfügbar machen
+RUN echo "/usr/lib/python3/dist-packages" \
+    >> /usr/local/lib/python3.11/site-packages/raspi-packages.pth
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    opencv-python-headless==4.8.1.78 \
+    picamera2==0.3.2 \
+    numpy==1.24.3 \
+    kociemba==1.2.1
+
+COPY . .
+
+# Test-Modus für Kamera ohne GUI
+ENV TEST_MODE=1
+
+CMD ["python", "kombidings_test.py"]

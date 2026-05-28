@@ -1,48 +1,42 @@
-FROM arm64v8/python:3.11-slim-bookworm
+FROM arm64v8/python:3.11-slim-bullseye
 
-# Raspberry Pi Repositories
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gnupg \
-    && curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key \
-    | gpg --dearmor -o /etc/apt/trusted.gpg.d/raspberrypi.gpg \
-    && echo "deb http://archive.raspberrypi.org/debian/ bookworm main" \
-    > /etc/apt/sources.list.d/raspi.list
+WORKDIR /app
 
-# Nur Kamera + Vision (ohne GPIO)
+# Essenzielle Build-Tools + OpenCV Dependencies (Bullseye hat alle Packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-libcamera \
-    python3-kms++ \
+    build-essential \
+    cmake \
+    git \
+    wget \
     libatlas-base-dev \
-    libharfbuzz0b \
-    libwebp7 \
-    libtiff6 \
-    libjasper1 \
     libjasper-dev \
+    libtiff-dev \
+    libjasper1 \
+    libharfbuzz0b \
+    libwebp6 \
+    libtiff5 \
     libopenjp2-7 \
-    gcc g++ \
-    libglib2.0-0 \
     libegl1 \
     libx11-6 \
     libxrandr2 \
     libdrm2 \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Raspberry Pi System-Pakete verfügbar machen
-RUN echo "/usr/lib/python3/dist-packages" \
-    >> /usr/local/lib/python3.11/site-packages/raspi-packages.pth
-
-WORKDIR /app
-
+# Python Dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir \
-    opencv-python-headless==4.8.1.78 \
-    picamera2==0.3.2 \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
     numpy==1.24.3 \
-    kociemba==1.2.1
+    opencv-python-headless==4.8.1.78 \
+    kociemba==1.2.1 \
+    picamera2==0.3.2
 
 COPY . .
 
 # Test-Modus für Kamera ohne GUI
 ENV TEST_MODE=1
+ENV PYTHONUNBUFFERED=1
 
 CMD ["python", "kombidings_test.py"]
+

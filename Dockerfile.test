@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Essenzielle Build-Tools + OpenCV Dependencies (Bullseye hat alle Packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcap-dev \
     build-essential \
     cmake \
     git \

@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo "deb http://archive.raspberrypi.com/debian/ bookworm main" \
        > /etc/apt/sources.list.d/raspi.list \
     && apt-get update && apt-get install -y --no-install-recommends \
+        libcap-dev \
         libatlas-base-dev \
         libharfbuzz0b \
         libwebp7 \

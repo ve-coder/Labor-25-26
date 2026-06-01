@@ -1,7 +1,7 @@
 FROM arm64v8/python:3.11-slim-bullseye
 
 WORKDIR /app
-
+ENV PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH
 # Essenzielle Build-Tools + OpenCV Dependencies (Bullseye hat alle Packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libcap-dev \

@@ -13,6 +13,9 @@ services:
       - /dev/video10:/dev/video10
       - /dev/video11:/dev/video11
       - /dev/video12:/dev/video12
+      - /dev/media0:/dev/media0
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/vchiq:/dev/vchiq
     
     # Video group
     group_add:
@@ -23,11 +26,11 @@ services:
       - DISPLAY=${DISPLAY:-:0}
     
     volumes:
+      - /run/udev:/run/udev:ro
       # X11 für Display (optional)
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       # Kalibrierung speichern
       - ./data:/app/data
       - ./cube_calib.json:/app/cube_calib.json
-    
     stdin_open: true
     tty: true

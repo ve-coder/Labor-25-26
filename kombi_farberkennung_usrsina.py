@@ -446,7 +446,7 @@ def camera_thread():
     calib = load_calib()
 
     picam2 = Picamera2()
-    config = picam2.create_preview_configuration(main={"format": "BGR888", "size": (1280, 720)})
+    config = picam2.create_preview_configuration(main={"format": "RGB888", "size": (1280, 720)})
     picam2.configure(config)
     picam2.start()
     time.sleep(0.5)
@@ -459,8 +459,8 @@ def camera_thread():
         for idx, (lab, name) in enumerate(CALIB_ORDER, 1):
             ev_q.put(("status", f"Kalibrierung {idx}/6: {name}"))
             while not ev_quit.is_set():
-                frame_bgr = picam2.capture_array()
-                frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+                frame_rgb = picam2.capture_array()
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
                 draw_grid(frame_bgr)
                 put_info(frame_bgr, [
@@ -499,8 +499,8 @@ def camera_thread():
         ev_q.put(("status", f"Scan {idx}/6: {face_name}"))
 
         while not ev_quit.is_set():
-            frame_bgr = picam2.capture_array()
-            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+            frame_rgb = picam2.capture_array()
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
             draw_grid(frame_bgr)
             live = scan_face_3x3(frame_rgb, calib)

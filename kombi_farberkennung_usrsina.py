@@ -278,8 +278,16 @@ def cell_roi(frame_rgb, x0, y0, r, c):
     rh = max(1, int(h * ROI_CENTER_DIM_FRAC))
     cx = (cx0 + cx1) // 2
     cy = (cy0 + cy1) // 2
-    rx0, ry0 = cx - rw // 2, cy - rh // 2
-    rx1, ry1 = rx0 + rw, ry0 + rh
+    rx0 = max(cx0, cx - rw // 2)
+    ry0 = max(cy0, cy - rh // 2)
+    rx1 = min(cx1, rx0 + rw)
+    ry1 = min(cy1, ry0 + rh)
+    if rx1 <= rx0:
+        rx0 = min(max(cx0, cx), cx1 - 1)
+        rx1 = rx0 + 1
+    if ry1 <= ry0:
+        ry0 = min(max(cy0, cy), cy1 - 1)
+        ry1 = ry0 + 1
     return frame_rgb[ry0:ry1, rx0:rx1]
 
 def mean_rgb(roi):

@@ -1,41 +1,40 @@
-FROM arm64v8/python:3.11-slim-bullseye
+# Wir nutzen die schlanke Debian Bookworm Basis
+FROM debian:bookworm-slim
 
 WORKDIR /app
-ENV PYTHONPATH=/usr/lib/python3/dist-packages:$PYTHONPATH
-# Essenzielle Build-Tools + OpenCV Dependencies (Bullseye hat alle Packages)
+
+# 1. Raspberry Pi Paketquellen hinzufügen (WICHTIG für libcamera!)
+RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg && \
+    wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspi.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/raspi.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list
+
+# 2. Alle System-Pakete installieren (picamera2 und libcamera laden wir hier!)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcap-dev \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-picamera2 \
+    python3-libcamera \
+    python3-kms++ \
     build-essential \
+    libcap-dev \
     cmake \
-    git \
-    wget \
     libatlas-base-dev \
-    libtiff-dev \
-    libharfbuzz0b \
-    libwebp6 \
-    libtiff5 \
-    libopenjp2-7 \
-    libegl1 \
-    libx11-6 \
-    libxrandr2 \
-    libdrm2 \
-    pkg-config \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Python Dependencies
-COPY requirements.txt .
+# 3. Python-Umgebung erstellen, die System-Pakete einbindet
+RUN python3 -m venv --system-site-packages /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 4. Pip-Pakete installieren (OHNE picamera2, das ist schon im System!)
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir \
     numpy==1.24.3 \
     opencv-python-headless==4.8.1.78 \
-    kociemba==1.2.1 \
-    picamera2==0.3.2
+    kociemba==1.2.1
 
 COPY . .
 
-# Test-Modus für Kamera ohne GUI
-ENV TEST_MODE=1
-ENV PYTHONUNBUFFERED=1
-
-CMD ["python", "kombidings_test.py"]
-
+# Falls dein Skript anders heißt als main.py, hier anpassen!
+CMD ["python", "main.py"]

@@ -273,7 +273,10 @@ def cell_bounds(x0, y0, r, c):
 def cell_roi(frame_rgb, x0, y0, r, c):
     cx0, cy0, cx1, cy1 = cell_bounds(x0, y0, r, c)
     if cx1 <= cx0 or cy1 <= cy0:
-        return frame_rgb[cy0:cy0 + 1, cx0:cx0 + 1]
+        fh, fw = frame_rgb.shape[:2]
+        sx = min(max(cx0, 0), max(fw - 1, 0))
+        sy = min(max(cy0, 0), max(fh - 1, 0))
+        return frame_rgb[sy:sy + 1, sx:sx + 1]
 
     w = cx1 - cx0
     h = cy1 - cy0

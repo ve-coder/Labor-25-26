@@ -1,14 +1,21 @@
-# Wir nutzen die schlanke Debian Bookworm Basis
+# 1. Basis-Image: Das aktuelle und von Raspberry Pi unterstützte Bookworm
 FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# 1. Raspberry Pi Paketquellen hinzufügen (WICHTIG für libcamera!)
-RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg && \
-    wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspi.gpg && \
+# 2. Zertifikate und Tools für den Download von Schlüsseln installieren
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    gnupg \
+    ca-certificates \
+    apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
+
+# 3. Das offizielle Raspberry Pi Repository sicher hinzufügen
+RUN wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspi.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/raspi.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list
 
-# 2. Alle System-Pakete installieren (picamera2 und libcamera laden wir hier!)
+# 4. Alle System-Bibliotheken (inkl. Kamera, Python, OpenCV-Abhängigkeiten) auf einmal installieren
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -17,24 +24,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-libcamera \
     python3-kms++ \
     build-essential \
-    libcap-dev \
     cmake \
+    pkg-config \
     libatlas-base-dev \
     libglib2.0-0 \
+    libcap-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Python-Umgebung erstellen, die System-Pakete einbindet
+# 5. Virtuelle Umgebung erstellen und System-Pakete (wie picamera2 & libcamera) einbinden
 RUN python3 -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 4. Pip-Pakete installieren (OHNE picamera2, das ist schon im System!)
+# 6. requirements.txt in den Container kopieren
+COPY requirements.txt .
+
+# 7. Restliche Python-Pakete via pip installieren
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir \
     numpy==1.24.3 \
     opencv-python-headless==4.8.1.78 \
     kociemba==1.2.1
 
+# 8. Deinen restlichen Code kopieren
 COPY . .
 
-# Falls dein Skript anders heißt als main.py, hier anpassen!
+# 9. Startbefehl (passe main.py an, falls deine Startdatei anders heißt)
 CMD ["python", "main.py"]

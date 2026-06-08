@@ -21,7 +21,7 @@ except Exception:
 CV_WINDOW = "Cube Scan (OpenCV)"
 GRID_TOTAL = 660
 GRID_N = 3
-ROI_MARGIN_FRAC = 0.25
+ROI_CENTER_FRAC = 0.15
 
 CALIB_FILE = "cube_calibration_rgb9.json"
 
@@ -274,10 +274,12 @@ def cell_roi(frame_rgb, x0, y0, r, c):
     cx0, cy0, cx1, cy1 = cell_bounds(x0, y0, r, c)
     w = cx1 - cx0
     h = cy1 - cy0
-    mx = int(w * ROI_MARGIN_FRAC)
-    my = int(h * ROI_MARGIN_FRAC)
-    rx0, ry0 = cx0 + mx, cy0 + my
-    rx1, ry1 = cx1 - mx, cy1 - my
+    rw = max(1, int(w * ROI_CENTER_FRAC))
+    rh = max(1, int(h * ROI_CENTER_FRAC))
+    cx = (cx0 + cx1) // 2
+    cy = (cy0 + cy1) // 2
+    rx0, ry0 = cx - rw // 2, cy - rh // 2
+    rx1, ry1 = rx0 + rw, ry0 + rh
     return frame_rgb[ry0:ry1, rx0:rx1]
 
 def mean_rgb(roi):

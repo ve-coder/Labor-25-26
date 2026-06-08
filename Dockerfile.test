@@ -44,7 +44,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir \
     numpy==1.24.3 \
     opencv-python-headless==4.8.1.78 \
-    kociemba==1.2.1
+    kociemba==1.2.1 \
+    ursina
 
 # 8. Deinen restlichen Code kopieren
 COPY . .

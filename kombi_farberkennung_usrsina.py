@@ -272,22 +272,19 @@ def cell_bounds(x0, y0, r, c):
 
 def cell_roi(frame_rgb, x0, y0, r, c):
     cx0, cy0, cx1, cy1 = cell_bounds(x0, y0, r, c)
+    if cx1 <= cx0 or cy1 <= cy0:
+        return frame_rgb[cy0:cy0 + 1, cx0:cx0 + 1]
+
     w = cx1 - cx0
     h = cy1 - cy0
-    rw = max(1, int(w * ROI_CENTER_DIM_FRAC))
-    rh = max(1, int(h * ROI_CENTER_DIM_FRAC))
+    rw = min(w, max(1, int(w * ROI_CENTER_DIM_FRAC)))
+    rh = min(h, max(1, int(h * ROI_CENTER_DIM_FRAC)))
     cx = (cx0 + cx1) // 2
     cy = (cy0 + cy1) // 2
-    rx0 = max(cx0, cx - rw // 2)
-    ry0 = max(cy0, cy - rh // 2)
-    rx1 = min(cx1, rx0 + rw)
-    ry1 = min(cy1, ry0 + rh)
-    if rx1 <= rx0:
-        rx0 = min(max(cx0, cx), cx1 - 1)
-        rx1 = rx0 + 1
-    if ry1 <= ry0:
-        ry0 = min(max(cy0, cy), cy1 - 1)
-        ry1 = ry0 + 1
+    rx0 = max(cx0, min(cx - rw // 2, cx1 - rw))
+    ry0 = max(cy0, min(cy - rh // 2, cy1 - rh))
+    rx1 = rx0 + rw
+    ry1 = ry0 + rh
     return frame_rgb[ry0:ry1, rx0:rx1]
 
 def mean_rgb(roi):

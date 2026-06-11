@@ -32,5 +32,6 @@ services:
       # Kalibrierung speichern
       - ./data:/app/data
       - ./cube_calib.json:/app/cube_calib.json
+      - .:/app
     stdin_open: true
     tty: true

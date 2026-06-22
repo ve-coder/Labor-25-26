@@ -1,13 +1,13 @@
-version: '3.8'
-
 services:
   rubiks-test:
     build:
-      context: .
+      # NEU: Er zieht sich den Code und den Bauplan direkt von GitHub!
+      context: https://github.com/ve-coder/Labor-25-26.git#main
       dockerfile: Dockerfile.test
     container_name: rubiks-test
+    
     privileged: true
-    # Nur Kamera-Zugriff (kein GPIO)
+    
     devices:
       - /dev/video0:/dev/video0
       - /dev/video10:/dev/video10
@@ -17,7 +17,7 @@ services:
       - /dev/dma_heap:/dev/dma_heap
       - /dev/vchiq:/dev/vchiq
       - /dev/dri:/dev/dri
-    # Video group
+    
     group_add:
       - "44"
     
@@ -27,11 +27,10 @@ services:
     
     volumes:
       - /run/udev:/run/udev:ro
-      # X11 für Display (optional)
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      # Kalibrierung speichern
+      # Deine Speicherorte für die Kalibrierung bleiben erhalten!
       - ./data:/app/data
       - ./cube_calib.json:/app/cube_calib.json
-      - .:/app
+      
     stdin_open: true
     tty: true

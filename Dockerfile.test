@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN wget -qO - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o /usr/share/keyrings/raspi.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/raspi.gpg] http://archive.raspberrypi.org/debian/ bookworm main" > /etc/apt/sources.list.d/raspi.list
 
-# 4. Alle System-Bibliotheken + 3D/Grafik-Treiber installieren
+# 4. Alle System-Bibliotheken installieren
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-dev \
@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxi6 \
     libopenal1 \
     libgtk2.0-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 # 5. Virtuelle Umgebung erstellen und System-Pakete (wie picamera2 & libcamera) einbinden
 RUN python3 -m venv --system-site-packages /opt/venv

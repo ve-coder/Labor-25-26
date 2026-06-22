@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  rubiks:
+    build: .
+    container_name: rubiks-solver
+    restart: always
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+    volumes:
+      - /dev:/dev
+      - /tmp/.X11-unix:/tmp/.X11-unix

@@ -63,9 +63,4 @@ COPY . .
 
 # 9. Startbefehl (passe main.py an, falls deine Startdatei anders heißt)
 # Erlaubt dem Container, die Git-Dateien des Raspberry Pi zu bearbeiten
-RUN git config --global --add safe.directory /app
-
-# Der magische Startbefehl: Erst updaten, dann das Skript starten!
-# Das Semikolon (;) sorgt dafür, dass das Skript auch dann startet, 
-# wenn der Pi mal kein Internet für das Update hat.
-CMD /bin/bash -c "git pull ; python main.py"
+CMD ["python", "main.py"]

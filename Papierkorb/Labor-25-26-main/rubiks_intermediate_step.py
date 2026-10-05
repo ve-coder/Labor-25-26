@@ -213,7 +213,8 @@ def save_calibration(path: Path, calib):
         json.dump(out, f, indent=2)
 
 
-def classify_hsv(h, s, v, calib):
+def classify_hsv(h, s, v, calib, value_scale=1.0):
+    v_scaled = max(0.0, min(255.0, v * value_scale))
     best_label = "?"
     best_dist = 1e18
 
@@ -221,9 +222,10 @@ def classify_hsv(h, s, v, calib):
         dh = abs(h - ch)
         if dh > 90:
             dh = 180 - dh
-        ds = abs(s - cs)
-        dv = abs(v - cv)
-        d = (dh * dh + ds * ds + dv * dv) ** 0.5
+        hue_term = (dh / 90.0) * (0.4 + (s + cs) / 510.0)
+        sat_term = abs(s - cs) / 255.0
+        val_term = abs(v_scaled - cv) / 255.0
+        d = hue_term * 6.0 + sat_term * 3.0 + val_term * 0.6
         if d < best_dist:
             best_dist = d
             best_label = label
@@ -234,18 +236,34 @@ def classify_hsv(h, s, v, calib):
 def scan_face_3x3(frame_rgb, calib):
     h, w = frame_rgb.shape[:2]
     gx0, gy0, _, _ = grid_rect(w, h)
-    out = []
+    means = []
+    for r in range(3):
+        row_means = []
+        for c in range(3):
+            roi = cell_roi(frame_rgb, gx0, gy0, r, c)
+            row_means.append(mean_hsv(roi))
+        means.append(row_means)
 
+    frame_vals = [m[2] for row in means for m in row if m is not None]
+    calib_vals = [vals[2] for vals in calib.values()]
+    value_scale = 1.0
+    if frame_vals and calib_vals:
+        value_scale = np.clip(
+            float(np.mean(calib_vals)) / max(float(np.mean(frame_vals)), 1e-6),
+            0.70,
+            1.40,
+        )
+
+    out = []
     for r in range(3):
         row = []
         for c in range(3):
-            roi = cell_roi(frame_rgb, gx0, gy0, r, c)
-            m = mean_hsv(roi)
+            m = means[r][c]
             if m is None:
                 row.append("?")
                 continue
             hh, ss, vv = m
-            row.append(classify_hsv(hh, ss, vv, calib))
+            row.append(classify_hsv(hh, ss, vv, calib, value_scale))
         out.append(row)
 
     return out

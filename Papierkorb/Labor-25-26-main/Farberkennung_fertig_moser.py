@@ -129,13 +129,14 @@ def measure_center_cell_hsv(frame_rgb):
 # -----------------------------------------------------------
 # Farberkennung
 # -----------------------------------------------------------
-def classify_color_hsv(h, s, v):
+def classify_color_hsv(h, s, v, value_scale=1.0):
     """
     Gibt 'W', 'Y', 'R', 'O', 'G', 'B' oder '?' zurück.
     Nutzt zuerst Kalibrierung (Nearest Neighbor in HSV-Raum),
     sonst einfache Default-Schwellen.
     """
     # 1) Falls Kalibrierung vorhanden: Nearest Neighbor
+    v_scaled = max(0.0, min(255.0, v * value_scale))
     if calib_data:
         best_label = "?"
         best_dist = 1e12
@@ -144,18 +145,19 @@ def classify_color_hsv(h, s, v):
             dh = abs(h - ch)
             if dh > 90:
                 dh = 180 - dh
-            ds = abs(s - cs)
-            dv = abs(v - cv)
-            dist = (dh * dh + ds * ds + dv * dv) ** 0.5
+            hue_term = (dh / 90.0) * (0.4 + (s + cs) / 510.0)
+            sat_term = abs(s - cs) / 255.0
+            val_term = abs(v_scaled - cv) / 255.0
+            dist = hue_term * 6.0 + sat_term * 3.0 + val_term * 0.6
             if dist < best_dist:
                 best_dist = dist
                 best_label = label
         return best_label
 
     # 2) Fallback: grobe feste Grenzen
-    if v > 180 and s < 40:
+    if v_scaled > 180 and s < 40:
         return "W"
-    if v < 50:
+    if v_scaled < 50:
         return "?"
 
     if h < 10 or h >= 170:
@@ -181,10 +183,9 @@ def detect_cube_colors(frame_rgb):
     start_x, start_y = get_grid_origin(w_img, h_img)
 
     frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV)
-    face_colors = []
-
+    roi_means = []
     for row in range(GRID_ROWS):
-        row_colors = []
+        row_means = []
         for col in range(GRID_COLS):
             x1 = start_x + col * GRID_CELL_SIZE
             y1 = start_y + row * GRID_CELL_SIZE
@@ -199,11 +200,29 @@ def detect_cube_colors(frame_rgb):
 
             roi = frame_hsv[cy1:cy2, cx1:cx2]
             if roi.size == 0:
+                row_means.append(None)
+                continue
+            row_means.append(cv2.mean(roi)[:3])
+        roi_means.append(row_means)
+
+    frame_vals = [m[2] for row in roi_means for m in row if m is not None]
+    calib_vals = [vals[2] for vals in calib_data.values()] if calib_data else []
+    value_scale = 1.0
+    if frame_vals and calib_vals:
+        value_scale = float(np.clip(np.mean(calib_vals) / max(np.mean(frame_vals), 1e-6), 0.70, 1.40))
+
+    face_colors = []
+
+    for row in range(GRID_ROWS):
+        row_colors = []
+        for col in range(GRID_COLS):
+            m = roi_means[row][col]
+            if m is None:
                 row_colors.append("?")
                 continue
 
-            h_mean, s_mean, v_mean, _ = cv2.mean(roi)
-            color_label = classify_color_hsv(h_mean, s_mean, v_mean)
+            h_mean, s_mean, v_mean = m
+            color_label = classify_color_hsv(h_mean, s_mean, v_mean, value_scale)
             row_colors.append(color_label)
         face_colors.append(row_colors)
 

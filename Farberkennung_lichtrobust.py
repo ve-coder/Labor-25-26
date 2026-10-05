@@ -302,6 +302,30 @@ def mean_rgb(roi):
     m = roi.reshape(-1, 3).mean(axis=0)
     return float(m[0]), float(m[1]), float(m[2])  # R,G,B
 
+def _normalize_rgb(rgb):
+    r, g, b = rgb
+    s = max(r + g + b, 1e-6)
+    return r / s, g / s, b / s
+
+def _estimate_channel_gains(samples):
+    if not samples:
+        return 1.0, 1.0, 1.0
+    arr = np.array(samples, dtype=np.float32)
+    ch_mean = np.clip(arr.mean(axis=0), 1e-6, None)
+    target = float(ch_mean.mean())
+    gains = np.clip(target / ch_mean, 0.65, 1.45)
+    return float(gains[0]), float(gains[1]), float(gains[2])
+
+def _apply_channel_gains(rgb, gains):
+    arr = np.array(rgb, dtype=np.float32) * np.array(gains, dtype=np.float32)
+    arr = np.clip(arr, 0.0, 255.0)
+    return float(arr[0]), float(arr[1]), float(arr[2])
+
+def _rgb_to_hsv(rgb):
+    px = np.array([[[rgb[0], rgb[1], rgb[2]]]], dtype=np.uint8)
+    hsv = cv2.cvtColor(px, cv2.COLOR_RGB2HSV)[0, 0]
+    return float(hsv[0]), float(hsv[1]), float(hsv[2])
+
 def draw_grid(frame_bgr):
     h, w = frame_bgr.shape[:2]
     x0, y0, x1, y1 = grid_rect(w, h)
@@ -350,15 +374,33 @@ def calibrate_face_avg9(frame_rgb):
     m = arr.mean(axis=0)
     return float(m[0]), float(m[1]), float(m[2])
 
-def classify_rgb(r, g, b, calib):
+def classify_rgb(r, g, b, calib, gains=(1.0, 1.0, 1.0)):
+    measured = _apply_channel_gains((r, g, b), gains)
+    if sum(measured) < 15:
+        return "?"
+    mrn = _normalize_rgb(measured)
+    mh, ms, _ = _rgb_to_hsv(measured)
+
     best = "?"
     best_d = 1e18
     for label, (cr, cg, cb) in calib.items():
+        calib_rgb = _apply_channel_gains((cr, cg, cb), gains)
+        crn = _normalize_rgb(calib_rgb)
+        ch, cs, _ = _rgb_to_hsv(calib_rgb)
+
+        chroma_d = (mrn[0] - crn[0]) ** 2 + (mrn[1] - crn[1]) ** 2 + (mrn[2] - crn[2]) ** 2
+        dh = abs(mh - ch)
+        dh = min(dh, 180.0 - dh) / 90.0
+        sat_weight = (ms + cs) / 510.0
+        hue_term = dh * sat_weight
+
         tr, tg, tb = TOL.get(label, (255, 255, 255))
-        dr, dg, db = (r - cr), (g - cg), (b - cb)
-        if abs(dr) > tr or abs(dg) > tg or abs(db) > tb:
-            continue
-        d = dr*dr + dg*dg + db*db
+        dr = abs(measured[0] - calib_rgb[0])
+        dg = abs(measured[1] - calib_rgb[1])
+        db = abs(measured[2] - calib_rgb[2])
+        tol_penalty = max(0.0, dr - tr) + max(0.0, dg - tg) + max(0.0, db - tb)
+
+        d = chroma_d * 260.0 + hue_term * 8.0 + (tol_penalty / 255.0) * 2.0
         if d < best_d:
             best_d = d
             best = label
@@ -367,17 +409,26 @@ def classify_rgb(r, g, b, calib):
 def scan_face_3x3(frame_rgb, calib):
     h, w = frame_rgb.shape[:2]
     gx0, gy0, _, _ = grid_rect(w, h)
+    means = []
+    for r in range(3):
+        row_means = []
+        for c in range(3):
+            roi = cell_roi(frame_rgb, gx0, gy0, r, c)
+            m = mean_rgb(roi)
+            row_means.append(m)
+        means.append(row_means)
+
+    gains = _estimate_channel_gains([m for row in means for m in row if m is not None])
     out = []
     for r in range(3):
         row = []
         for c in range(3):
-            roi = cell_roi(frame_rgb, gx0, gy0, r, c)
-            m = mean_rgb(roi)
+            m = means[r][c]
             if m is None:
                 row.append("?")
                 continue
             rr, gg, bb = m
-            row.append(classify_rgb(rr, gg, bb, calib))
+            row.append(classify_rgb(rr, gg, bb, calib, gains))
         out.append(row)
     return out
 

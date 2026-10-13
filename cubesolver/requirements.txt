@@ -1,0 +1,9 @@
+# Laptop / Simulation (pip). Am Pi stattdessen install_pi.sh verwenden.
+fastapi>=0.110
+uvicorn>=0.29
+kociemba==1.2.1
+numpy>=1.24
+opencv-python-headless>=4.8
+# Tests
+pytest>=8
+httpx>=0.27

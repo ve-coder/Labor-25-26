@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cube-Solver</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'%3E%3Crect width='1' height='1' fill='%23c8312c'/%3E%3Crect x='1' width='1' height='1' fill='%23f2d230'/%3E%3Crect x='2' width='1' height='1' fill='%232f9e4a'/%3E%3Crect y='1' width='1' height='1' fill='%231f5fc4'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23f4f4f0'/%3E%3Crect x='2' y='1' width='1' height='1' fill='%23ee7d22'/%3E%3Crect y='2' width='1' height='1' fill='%232f9e4a'/%3E%3Crect x='1' y='2' width='1' height='1' fill='%23c8312c'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231f5fc4'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>Cube-Solver</div>
+  <span id="modeBadge" class="badge">–</span>
+  <span id="statusPill" class="pill">verbinde …</span>
+  <span id="stepLabel" class="step-label"></span>
+  <span class="spacer"></span>
+  <span id="conn" class="conn" title="Verbindung zum Server"></span>
+</header>
+<div id="banner" class="banner" hidden></div>
+
+<main class="layout">
+  <section class="card cube-card">
+    <div class="card-head">
+      <h2>Würfel</h2>
+      <span class="muted small" id="scanInfo">0/54 Felder</span>
+      <span class="spacer"></span>
+      <button class="ghost small" id="resetView" title="Ansicht zurücksetzen">Ansicht</button>
+    </div>
+    <div id="cube3d" class="cube3d" aria-label="3D-Würfel, mit der Maus drehbar"></div>
+    <div class="hint small muted">Ziehen = drehen · Mausrad = zoomen · Klick auf ein Feld = Farbe korrigieren</div>
+    <div id="moves" class="moves" aria-label="Zugliste"></div>
+  </section>
+
+  <section class="side">
+    <div class="card">
+      <div class="card-head"><h2>Steuerung</h2><span class="spacer"></span><span class="muted small" id="programName"></span></div>
+      <div class="btn-row">
+        <button id="btnStart" class="primary">Start</button>
+        <button id="btnStop" class="danger">Stopp</button>
+        <button id="btnHome">Grundstellung</button>
+      </div>
+      <div class="btn-row">
+        <label class="switch"><input type="checkbox" id="stepMode"><span></span>Einzelschritt</label>
+        <button id="btnNext" disabled>Nächster Schritt</button>
+      </div>
+      <label class="field">
+        <span>Lösegeschwindigkeit <b id="speedVal">–</b> <span class="muted">Schritte/s</span></span>
+        <input type="range" id="speedSolve" min="100" max="3000" step="50">
+      </label>
+      <div id="errorBox" class="error-box" hidden></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Kamera</h2><span class="spacer"></span><span id="camOk" class="pill">–</span></div>
+      <img id="camImg" class="cam" alt="Kamerabild der Unterseite mit Raster" src="/api/camera.mjpg">
+    </div>
+  </section>
+
+  <section class="card tabs-card">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="program" class="active">Ablauf</button>
+      <button role="tab" data-tab="manual">Handbetrieb</button>
+      <button role="tab" data-tab="stats">Statistik</button>
+      <button role="tab" data-tab="settings">Einstellungen</button>
+      <button role="tab" data-tab="log">Log</button>
+    </nav>
+
+    <div class="tab active" id="tab-program">
+      <div class="toolbar">
+        <select id="progSelect" aria-label="Programm"></select>
+        <button id="progLoad">Laden</button>
+        <button id="progSave">Speichern</button>
+        <button id="progSaveAs">Speichern unter …</button>
+        <button id="progDelete" class="ghost">Löschen</button>
+        <span class="spacer"></span>
+        <span class="muted small">Nur Blöcke unter „Programmstart“ werden ausgeführt</span>
+      </div>
+      <div id="blockly" class="blockly"></div>
+    </div>
+
+    <div class="tab" id="tab-manual">
+      <div class="manual-grid">
+        <div>
+          <h3>Zylinder</h3>
+          <div id="cylGrid" class="cyl-grid"></div>
+          <h3>Motoren</h3>
+          <div id="motorGrid" class="motor-grid"></div>
+        </div>
+        <div>
+          <h3>L + R gemeinsam (ganzer Würfel)</h3>
+          <div class="btn-row">
+            <button data-pair="-90">−90°</button><button data-pair="90">+90°</button><button data-pair="180">180°</button>
+          </div>
+          <h3>Signale</h3>
+          <div class="btn-row">
+            <button data-beep="kurz">Buzzer kurz</button><button data-beep="fertig">„fertig“</button><button data-beep="fehler">„Fehler“</button>
+          </div>
+          <div class="kv"><span>Lichtschranke</span><b id="lightBarrier">–</b></div>
+          <h3>Sicherheit</h3>
+          <label class="switch"><input type="checkbox" id="interlocks" checked><span></span>Sicherheitsprüfungen</label>
+          <p class="small muted">Verhindert z. B. L+R drehen bei ausgefahrenem F/B oder das Fallenlassen des Würfels. Nur zum Einrichten abschalten.</p>
+          <h3>Würfelmodell</h3>
+          <div class="btn-row">
+            <button id="modelReset">Modell leeren</button>
+            <button id="modelSolve">Lösung berechnen</button>
+          </div>
+          <div id="simBox">
+            <h3>Simulation</h3>
+            <div class="btn-row">
+              <button id="simInsert">Neuen Würfel einlegen</button>
+              <button id="simRemove" class="ghost">Würfel entnehmen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-stats">
+      <div id="kpis" class="kpis"></div>
+      <div class="toolbar"><h3>Letzte Durchläufe</h3><span class="spacer"></span><button id="statsClear" class="ghost">Statistik löschen</button></div>
+      <div class="table-wrap"><table id="statsTable"></table></div>
+      <div id="statsErrors"></div>
+    </div>
+
+    <div class="tab" id="tab-settings">
+      <div class="toolbar">
+        <button id="settingsSave" class="primary">Speichern</button>
+        <button id="settingsRevert" class="ghost">Verwerfen</button>
+        <span class="spacer"></span>
+        <span class="muted small">Mit ↻ markierte Werte wirken nach einem Neustart des Servers</span>
+      </div>
+      <form id="settingsForm" class="settings"></form>
+    </div>
+
+    <div class="tab" id="tab-log">
+      <div id="logList" class="log"></div>
+    </div>
+  </section>
+</main>
+
+<div id="palette" class="palette" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/vendor/blockly_compressed.js"></script>
+<script src="/static/vendor/blockly_de.js"></script>
+<script src="/static/blocks.js"></script>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

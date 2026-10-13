@@ -1,0 +1,33 @@
+{
+  "name": "standard",
+  "description": "Ablauf laut Pinplan: Scan mit L+R, Umsetzen mit D, Lösen, Grundstellung",
+  "blocks": [
+    {"id": "s01", "type": "cylinder", "target": "D", "action": "extend"},
+    {"id": "s02", "type": "cylinder", "target": "LR", "action": "extend"},
+    {"id": "s03", "type": "cylinder", "target": "D", "action": "retract"},
+    {"id": "s04", "type": "repeat", "times": 4, "body": [
+      {"id": "s05", "type": "scan"},
+      {"id": "s06", "type": "pair", "angle": 90, "speed": "scan"}
+    ]},
+    {"id": "s07", "type": "cylinder", "target": "D", "action": "extend"},
+    {"id": "s08", "type": "cylinder", "target": "LR", "action": "retract"},
+    {"id": "s09", "type": "motor", "side": "D", "angle": 90, "speed": "regrip"},
+    {"id": "s10", "type": "cylinder", "target": "LR", "action": "extend"},
+    {"id": "s11", "type": "cylinder", "target": "D", "action": "retract"},
+    {"id": "s12", "type": "pair", "angle": 90, "speed": "scan"},
+    {"id": "s13", "type": "scan"},
+    {"id": "s14", "type": "pair", "angle": 180, "speed": "scan"},
+    {"id": "s15", "type": "scan"},
+    {"id": "s16", "type": "pair", "angle": 90, "speed": "scan"},
+    {"id": "s17", "type": "compute"},
+    {"id": "s18", "type": "cylinder", "target": "D", "action": "extend"},
+    {"id": "s19", "type": "cylinder", "target": "U", "action": "extend"},
+    {"id": "s20", "type": "cylinder", "target": "FB", "action": "extend"},
+    {"id": "s21", "type": "execute", "speed": "solve"},
+    {"id": "s22", "type": "cylinder", "target": "U", "action": "retract"},
+    {"id": "s23", "type": "cylinder", "target": "FB", "action": "retract"},
+    {"id": "s24", "type": "cylinder", "target": "LR", "action": "retract"},
+    {"id": "s25", "type": "cylinder", "target": "D", "action": "retract"},
+    {"id": "s26", "type": "beep", "pattern": "fertig"}
+  ]
+}

@@ -133,3 +133,29 @@ def test_api_smoke(tmp_path, monkeypatch):
         assert c.post("/api/manual/pair", json={"angle": 90}).status_code == 400
         assert c.get("/api/stats").json()["total"] >= 0
         assert c.get("/api/camera.jpg").status_code == 200
+
+
+def test_scan_only_and_reference_dataset(tmp_path):
+    import subprocess, sys
+    s, hw, cam, m = make(tmp_path)
+    hw.insert_cube()
+    truth = hw.cube.copy()
+    assert run(m, mach.load_program("nur_scannen")) == "fertig", m.error
+    assert all(v is False for v in hw.cyl_target.values())
+    assert sum(1 for st in m.model.stickers if st.rgb) == 54
+    # Würfel liegt nach dem Scan wieder unten, erkannte Farben stimmen mit dem echten Würfel
+    assert m.model.facelets() == hw.cube.facelets()
+    # ein Feld absichtlich "korrigieren" -> Referenz speichern -> Auswertung zählt genau 1 Fehler
+    face, idx = "F", 0
+    real = m.model.face_stickers(face)[idx].color
+    other = next(c for c in "WYROGB" if c != real)
+    m.set_sticker(face, idx, other)
+    r = m.save_reference("Test")
+    assert r["corrected"] == 1
+    ds = tmp_path / "dataset"
+    for flag in ([], ["--resample"]):
+        out = subprocess.run([sys.executable, "tools/eval_colors.py", "--json", "--dir", str(ds), *flag],
+                             capture_output=True, text=True, check=True)
+        res = json.loads(out.stdout)
+        assert res["datasets"] == 1 and res["wrong"] == 1, res
+    cam.close()

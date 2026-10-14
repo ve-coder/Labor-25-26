@@ -69,6 +69,7 @@ class Machine:
         self.interlocks = True
         self.run_info = {}
         self.program_name = None
+        self.scan_log = []  # [(bild, [9 sticker-ids])] des aktuellen Durchlaufs
 
     # ===================================================================== Log
     def log(self, text, level="info"):
@@ -137,6 +138,7 @@ class Machine:
     def _run(self, program):
         self.status = "läuft"
         self.model = CubeModel.blank()
+        self.scan_log = []
         self.solution, self.solution_text, self.solution_index = [], "", 0
         self._cube_event()
         self.run_info = {"program": program.get("name"), "start": time.time(), "scan_s": 0.0,
@@ -410,6 +412,9 @@ class Machine:
                 )
         self.cam.info_text = ""
         bottom = self.model.face_stickers("D")
+        if self.cam.last_frame is not None:
+            # Rohbild + welche Sticker in welchem Rasterfeld lagen -> für Referenzdaten
+            self.scan_log.append((self.cam.last_frame.copy(), [st.id for st in bottom]))
         for st, val in zip(bottom, values):
             st.rgb = tuple(round(v, 1) for v in val)
             st.color = vision.nearest_reference(val)  # vorläufig
@@ -428,6 +433,7 @@ class Machine:
         centers = [self.model.face_stickers(f)[4].id for f in FACES]
         colors, quality = vision.classify({s.id: s.rgb for s in self.model.stickers}, centers)
         for s in self.model.stickers:
+            s.auto_color = colors[s.id]
             if not getattr(s, "manual", False):
                 s.color = colors[s.id]
         self.log(f"Farben über die Mittelsteine kalibriert (Abweichung {quality:.1f})")
@@ -501,28 +507,70 @@ class Machine:
         self._cube_event()
         self.log(f"Feld {face}{index + 1} von Hand auf {color} gesetzt")
 
+    def save_reference(self, note=""):
+        """Speichert den aktuellen Scan als Referenz-Datensatz für die Farberkennung:
+        Messwerte, automatisch erkannte und (ggf. von Hand korrigierte) richtige Farben,
+        Rohbilder und Einstellungen. Auswertung: python tools/eval_colors.py"""
+        self.manual_guard()
+        if any(s.rgb is None for s in self.model.stickers):
+            raise RuntimeError("Zuerst alle 6 Seiten scannen")
+        if any(s.color is None for s in self.model.stickers):
+            raise RuntimeError("Nicht alle Felder haben eine Farbe")
+        name = time.strftime("%Y%m%d-%H%M%S")
+        d = DATA_DIR / "dataset" / name
+        d.mkdir(parents=True, exist_ok=True)
+        pos = {}
+        for f in FACES:
+            for i, st in enumerate(self.model.face_stickers(f)):
+                pos[st.id] = (f, i)
+        stickers = [{
+            "id": st.id, "face": pos[st.id][0], "index": pos[st.id][1], "rgb": list(st.rgb),
+            "auto": getattr(st, "auto_color", None), "color": st.color, "manual": bool(getattr(st, "manual", False)),
+        } for st in self.model.stickers]
+        scans = []
+        for k, (frame, ids) in enumerate(self.scan_log):
+            fn = f"scan_{k + 1}.png"
+            cv2.imwrite(str(d / fn), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            scans.append({"image": fn, "stickers": ids})
+        keys = ["cam_rotate", "cam_mirror", "grid_cx", "grid_cy", "grid_size", "sample_frac", "min_brightness"]
+        data = {
+            "name": name, "time": time.time(), "note": note, "mode": self.hw.name,
+            "center_ids": [self.model.face_stickers(f)[4].id for f in FACES],
+            "settings": {k: self.settings[k] for k in keys},
+            "stickers": stickers, "scans": scans,
+        }
+        (d / "labels.json").write_text(json.dumps(data, indent=1))
+        wrong = sum(1 for x in stickers if x["auto"] and x["auto"] != x["color"])
+        self.log(f"Referenz {name} gespeichert ({wrong} Felder waren falsch erkannt)")
+        return {"name": name, "corrected": wrong, "total": len(list((DATA_DIR / "dataset").glob("*/labels.json")))}
+
     def reset_model(self):
         self.manual_guard()
         self.model = CubeModel.blank()
+        self.scan_log = []
         self.solution, self.solution_text, self.solution_index = [], "", 0
         self._cube_event()
 
 
 # ===================================================================== Programme
+BUILTIN_PROGRAM_DIR = DEFAULT_PROGRAM_FILE.parent
+
+
 def list_programs():
+    """Eigene Programme (data/programs) + mitgelieferte (programs/), standard zuerst."""
     PROGRAM_DIR.mkdir(parents=True, exist_ok=True)
-    names = sorted(p.stem for p in PROGRAM_DIR.glob("*.json"))
-    if "standard" not in names:
-        names.insert(0, "standard")
-    return names
+    names = {p.stem for p in PROGRAM_DIR.glob("*.json")} | {p.stem for p in BUILTIN_PROGRAM_DIR.glob("*.json")}
+    names.discard("standard")
+    return ["standard"] + sorted(names)
 
 
 def load_program(name):
-    p = PROGRAM_DIR / f"{name}.json"
-    if p.exists():
-        return json.loads(p.read_text())
-    if name == "standard":
-        return json.loads(DEFAULT_PROGRAM_FILE.read_text())
+    if not name or any(c in name for c in "/\\"):
+        raise FileNotFoundError(name)
+    for folder in (PROGRAM_DIR, BUILTIN_PROGRAM_DIR):
+        p = folder / f"{name}.json"
+        if p.exists():
+            return json.loads(p.read_text())
     raise FileNotFoundError(name)
 
 

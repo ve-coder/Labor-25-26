@@ -289,6 +289,23 @@ async def solve_preview():
     return {"text": M().solution_text}
 
 
+@app.post("/api/cube/reference")
+async def cube_reference(body: dict | None = None):
+    """Aktuellen Scan (mit Korrekturen) als Referenz für die Farberkennung speichern."""
+    return await _call(M().save_reference, (body or {}).get("note", ""))
+
+
+@app.get("/api/cube/detail")
+async def cube_detail():
+    """Alle 54 Sticker mit Messwert, automatisch erkannter und aktueller Farbe."""
+    out = []
+    for st in M().model.stickers:
+        out.append({"id": st.id, "pos": st.pos, "normal": st.normal, "rgb": st.rgb,
+                    "auto": getattr(st, "auto_color", None), "color": st.color,
+                    "manual": bool(getattr(st, "manual", False))})
+    return out
+
+
 # ===================================================================== Simulation
 @app.post("/api/sim/insert")
 async def sim_insert():

@@ -1,0 +1,25 @@
+{
+  "name": "nur_scannen",
+  "description": "Scannt alle 6 Seiten ohne zu lösen und legt den Würfel wieder ab – zum Sammeln von Referenzdaten für die Farberkennung",
+  "blocks": [
+    {"id": "n01", "type": "cylinder", "target": "D", "action": "extend"},
+    {"id": "n02", "type": "cylinder", "target": "LR", "action": "extend"},
+    {"id": "n03", "type": "cylinder", "target": "D", "action": "retract"},
+    {"id": "n04", "type": "repeat", "times": 4, "body": [
+      {"id": "n05", "type": "scan"},
+      {"id": "n06", "type": "pair", "angle": 90, "speed": "scan"}
+    ]},
+    {"id": "n07", "type": "cylinder", "target": "D", "action": "extend"},
+    {"id": "n08", "type": "cylinder", "target": "LR", "action": "retract"},
+    {"id": "n09", "type": "motor", "side": "D", "angle": 90, "speed": "regrip"},
+    {"id": "n10", "type": "cylinder", "target": "LR", "action": "extend"},
+    {"id": "n11", "type": "cylinder", "target": "D", "action": "retract"},
+    {"id": "n12", "type": "pair", "angle": 90, "speed": "scan"},
+    {"id": "n13", "type": "scan"},
+    {"id": "n14", "type": "pair", "angle": 180, "speed": "scan"},
+    {"id": "n15", "type": "scan"},
+    {"id": "n16", "type": "pair", "angle": 90, "speed": "scan"},
+    {"id": "n17", "type": "home"},
+    {"id": "n18", "type": "beep", "pattern": "ok"}
+  ]
+}

@@ -77,7 +77,8 @@ class PiCamera(BaseCamera):
 class SimCamera(BaseCamera):
     """Erzeugt ein künstliches Bild der Unterseite des simulierten Würfels."""
 
-    def __init__(self, bottom_provider, width=640, height=480, settings=None):
+    def __init__(self, bottom_provider, width=640, height=480, settings=None, tint=8.0):
+        self.tint = tint  # Streuung der Stickerfarben
         self.bottom_provider = bottom_provider  # liefert 9 Farbbuchstaben (D-Netzansicht) oder None
         self.w, self.h = width, height
         self.settings = settings
@@ -101,7 +102,7 @@ class SimCamera(BaseCamera):
                 base = np.array(REFERENCE_RGB.get(c, (90, 90, 90)), float)
                 key = (i, c)
                 if key not in self._tint:
-                    self._tint[key] = self.rng.normal(0, 8, 3)
+                    self._tint[key] = self.rng.normal(0, self.tint, 3)
                 rgb = np.clip(base + self._tint[key], 0, 255)
                 p1 = (x0 + col * cell + 4, y0 + r * cell + 4)
                 p2 = (x0 + (col + 1) * cell - 4, y0 + (r + 1) * cell - 4)
@@ -230,20 +231,22 @@ def classify(sticker_rgbs: dict, center_ids: list):
         d = a - b
         return float(np.sqrt((0.5 * d[0]) ** 2 + d[1] ** 2 + d[2] ** 2))
 
-    pairs = []
-    for sid in ids:
-        for k, cl in enumerate(centers):
-            pairs.append((dist(lab_of[sid], cl), sid, k))
-    pairs.sort()
-    assign, count = {}, [0] * 6
-    for c_idx, cid in enumerate(center_ids):  # Mittelsteine sind fix
-        assign[cid] = c_idx
-        count[c_idx] += 1
-    for d, sid, k in pairs:
-        if sid in assign or count[k] >= 9:
-            continue
-        assign[sid] = k
-        count[k] += 1
+    # 1. Runde: Vergleich mit den Mittelsteinen. Danach Gruppenmittelwerte aus je
+    #    9 Feldern bilden (genauer als ein einzelner Mittelstein) und neu zuordnen.
+    #    Zuordnung jeweils optimal (Ungarische Methode) mit genau 9 Feldern je Farbe.
+    free = [sid for sid in ids if sid not in center_ids]
+    refs = centers
+    assign = None
+    for _round in range(4):
+        cost = np.array([[dist(lab_of[sid], refs[k]) for k in range(6) for _ in range(8)] for sid in free])
+        cols = hungarian(cost)
+        new_assign = {cid: k for k, cid in enumerate(center_ids)}
+        for row, sid in enumerate(free):
+            new_assign[sid] = cols[row] // 8
+        if new_assign == assign:
+            break
+        assign = new_assign
+        refs = [np.mean([lab_of[s_] for s_, g in assign.items() if g == k], axis=0) for k in range(6)]
 
     # Farbnamen für die 6 Gruppen: beste Permutation zu den Referenzfarben
     group_lab = []
@@ -262,6 +265,49 @@ def classify(sticker_rgbs: dict, center_ids: list):
     # Güte: mittlerer Abstand zum eigenen Mittelstein
     quality = float(np.mean([dist(lab_of[s], centers[g]) for s, g in assign.items()]))
     return {s: group_name[g] for s, g in assign.items()}, quality
+
+
+def hungarian(cost):
+    """Optimale Zuordnung (Kuhn-Munkres) für eine quadratische Kostenmatrix.
+    Liefert für jede Zeile die zugeordnete Spalte."""
+    cost = np.asarray(cost, float)
+    n = cost.shape[0]
+    u = np.zeros(n + 1)
+    v = np.zeros(n + 1)
+    p = np.zeros(n + 1, dtype=int)
+    way = np.zeros(n + 1, dtype=int)
+    for i in range(1, n + 1):
+        p[0] = i
+        j0 = 0
+        minv = np.full(n + 1, np.inf)
+        used = np.zeros(n + 1, dtype=bool)
+        while True:
+            used[j0] = True
+            i0 = p[j0]
+            cur = cost[i0 - 1] - u[i0] - v[1:]
+            free = ~used[1:]
+            better = free & (cur < minv[1:])
+            minv[1:][better] = cur[better]
+            way[1:][better] = j0
+            cand = np.where(free, minv[1:], np.inf)
+            j1 = int(np.argmin(cand)) + 1
+            delta = cand[j1 - 1]
+            u[p[used]] += delta
+            v[used] -= delta
+            minv[1:][free] -= delta
+            j0 = j1
+            if p[j0] == 0:
+                break
+        while True:
+            j1 = way[j0]
+            p[j0] = p[j1]
+            j0 = j1
+            if j0 == 0:
+                break
+    result = [0] * n
+    for j in range(1, n + 1):
+        result[p[j] - 1] = j - 1
+    return result
 
 
 def draw_overlay(frame, settings, live_colors=None, ok_count=0, stable=False, text=""):

@@ -48,6 +48,15 @@ Ist pigpiod oder die Kamera nicht erreichbar, startet die Oberfläche trotzdem u
 6. Einzelschritt-Modus an und das Standardprogramm Block für Block durchgehen.
 7. Dann im normalen Betrieb, zuerst mit niedriger Lösegeschwindigkeit.
 
+## Farberkennung mit Referenzdaten verbessern
+
+1. Verdrehten Würfel einlegen und das Programm **nur_scannen** starten.
+2. Falsch erkannte Felder im 3D-Würfel anklicken und korrigieren, dann **„Als Referenz speichern“**. Gespeichert wird in `data/dataset/`: Messwerte, richtige Farben und die 6 Bilder.
+3. Nach mehreren Datensätzen: `.venv/bin/python tools/eval_colors.py` zeigt die Trefferquote, die Verwechslungen (z. B. Rot → Orange) und die falschen Felder. Wurde an Raster oder Messung in `vision.py` etwas geändert, braucht es `--resample`.
+4. `tools/sim_color_stress.py 300 14` prüft die Erkennung mit 300 simulierten Würfeln.
+
+Die Klassifizierung ordnet die 54 Felder optimal den 6 Farben zu (genau 9 je Farbe, Ungarische Methode). Verglichen wird mit den Mittelwerten jeder Farbgruppe im Lab-Farbraum.
+
 ## Wie es funktioniert
 
 ```
@@ -82,6 +91,7 @@ Browser ──HTTP/WebSocket──► app/main.py (FastAPI)
 | `programs/standard.json` | Standardablauf laut Pinplan |
 | `data/` | Einstellungen, eigene Programme, Statistik, Scanbilder (nicht im Git) |
 | `deploy/` | systemd-Dienst, Boot-Konfiguration, Kiosk-Start |
+| `tools/` | Auswertung der Farberkennung (`eval_colors.py`, `sim_color_stress.py`) |
 | `tests/` | Tests: Würfelmodell, kompletter Simulationslauf, Sicherheitsregeln, API |
 
 ## Docker (später)

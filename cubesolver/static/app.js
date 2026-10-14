@@ -42,6 +42,12 @@ async function act(fn) {
 // ------------------------------------------------------------------ 3D-Würfel
 const cube = new Cube3D($("#cube3d"), { onStickerClick: openPalette });
 $("#resetView").onclick = () => cube.resetView();
+$("#saveRef").onclick = () => act(async () => {
+  const note = prompt("Referenz speichern – zuerst alle falsch erkannten Felder im Würfel anklicken und korrigieren.\n\nNotiz (optional, z. B. Licht, Würfel):", "");
+  if (note === null) return;
+  const r = await api("/api/cube/reference", "POST", { note });
+  toast(`Referenz ${r.name} gespeichert – ${r.corrected} Felder waren falsch erkannt (${r.total} Referenzen insgesamt)`);
+});
 
 function openPalette({ face, index }, x, y) {
   const p = $("#palette");
@@ -110,6 +116,7 @@ function renderState(s) {
   eb.hidden = !(s.status === "fehler" && s.error);
   eb.textContent = s.error || "";
   $("#scanInfo").textContent = `${s.scanned}/54 Felder gescannt`;
+  $("#saveRef").disabled = s.running || s.scanned < 54;
   const cam = s.camera || {};
   const co = $("#camOk");
   co.textContent = cam.error ? "Kamerafehler" : `${cam.ok}/9${cam.stable ? " erkannt" : ""}`;
